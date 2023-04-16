@@ -1,37 +1,35 @@
-import * as THREE from 'three';
+import * as THREE from 'https://unpkg.com/three/build/three.module.js';
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+let scene;
+let camera;
+let renderer; 
 
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize( window.innerWidth, window.innerHeight );
-document.body.appendChild( renderer.domElement );
-
-var clothGeometry;
+let rest = 25;
+let xSegs = 60;
+let ySegs = 20;
 
 // Tutorial geometry
-const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-const cube = new THREE.Mesh( geometry, material );
-scene.add( cube );
+// const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+// const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+// const cube = new THREE.Mesh( geometry, material );
+// scene.add( cube );
 
-camera.position.z = 5;
+let clothGeometry;
+let clothFunction = plane(rest * xSegs, rest * ySegs)
+let cloth = new Cloth(xSegs, ySegs);
 
-function animate() {
-	requestAnimationFrame( animate );
-
-	renderer.render( scene, camera );
+function Cloth(w, h) {
+	this.w = w;
+	this.h = h;
 }
 
 function plane(width, height) {
 
 	return function(u, v) {
+		let x = (u - 0.5) * width;
+		let y = (v + 0.5) * height;
 
-		var x = (u - 0.5) * width;
-		var y = (v + 0.5) * height;
-
-		return new THREE.Vector3( x, y, 0 );
-
+		return new THREE.Vector3(x, y, 0);
 	};
 
 }
@@ -41,12 +39,28 @@ function init() {
     //       instead
     // TODO: Custom parameters to match what we want
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+    camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.x = 5;
+    camera.position.z = 1500;
+    scene.add(camera);
 
-    clothGeometry = new THREE.ParametricGeometry()
+    clothGeometry = new THREE.ParametricGeometry(clothFunction, cloth.w, cloth.h)
     clothGeometry.dynamic = true;
+
+    clothObject = new THREE.Mesh(clothGeometry, material);
+    clothObject.position.set(0, 50, 0);
+    scene.add(clothObject);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
 
-animate();
+function animate() {
+	requestAnimationFrame( animate );
+    camera.lookAt( scene.position );
+	renderer.render( scene, camera );
+} 
 
+init();
+animate();
