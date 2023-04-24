@@ -1,3 +1,5 @@
 # Ignore Dist Folder
 dist
 sample.js
+
+node_modules

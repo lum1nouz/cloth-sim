@@ -1,3 +1,6 @@
+import * as THREE from "three";
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
 class Particle {
     constructor(x, y, z, mass = 1) {
       this.position = new THREE.Vector3(x, y, z);
@@ -12,7 +15,7 @@ class Particle {
 }
 
   
-function satisfyConstraints(p1, p2, distance) {
+function satisfyDistanceConstraints(p1, p2, distance) {
     const diff = new THREE.Vector3().subVectors(p2.position, p1.position);
     const currentDistance = diff.length();
     if (currentDistance === 0) return; // Prevent division by zero
@@ -31,20 +34,31 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0xffffff);
 document.body.appendChild(renderer.domElement);
 
+const controls = new OrbitControls( camera, renderer.domElement );
+
 // Add a white ambient light
-const ambientLight = new THREE.AmbientLight(0xffffff);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
+
+const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+pointLight.position.set(0, 10, 0);
+scene.add(pointLight);
+
+const pointLight2 = new THREE.PointLight(0xffffff, 1, 100);
+pointLight2.position.set(0, -10, 0);
+scene.add(pointLight2);
 
 // Create the cloth geometry
 const clothWidth = 10;
 const clothHeight = 10;
-const numParticlesWidth = 50;
-const numParticlesHeight = 50;
+const numParticlesWidth = 20;
+const numParticlesHeight = 20;
 const clothGeometry = new THREE.BufferGeometry();
 
 const particles = [];
 const vertices = [];
 const indices = [];
+const textureUVs = [];
 
 for (let v = 0; v < numParticlesHeight; v++) {
     for (let u = 0; u < numParticlesWidth; u++) {
@@ -66,25 +80,29 @@ for (let v = 0; v < numParticlesHeight; v++) {
             indices.push(b, c, d);
         }
 
-        
-
-        
+        textureUVs.push(v/numParticlesHeight, u/numParticlesWidth);
     }
 }
 
 
 clothGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+clothGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(textureUVs, 2));
 clothGeometry.setIndex(indices);
 
+const texture = new THREE.TextureLoader().load( "textures/square_pattern.avif");
+
 // Create the cloth material
-const clothMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
+const clothMaterial = new THREE.MeshBasicMaterial({ map: texture, wireframe: false });
+clothMaterial.side = THREE.DoubleSide; // Show both sides of the cloth
 
 // Create the cloth mesh
-const clothMesh = new THREE.Mesh(clothGeometry, clothMaterial);
+const clothMesh = new THREE.Mesh(clothGeometry, clothMaterial, 
+);
 scene.add(clothMesh);
 
 camera.position.set(20, 5, -15); // Update the camera position for a diagonal point of view
 camera.lookAt(scene.position);
+controls.update();
 
 // Wind
 const windForce = new THREE.Vector3(10, -5, 15);
@@ -101,10 +119,10 @@ function simulate() {
     for (let i = 0; i < particles.length; i++) {
         const particle = particles[i];
 
-        if ((i === 0 || i === numParticlesWidth - 1) && particles[i].position.y === particles[i].original.y) {
-            // Skip force application and integration for the top two corners
-            continue;
-        }
+        // if ((i === 0 || i === numParticlesWidth - 1) && particles[i].position.y === particles[i].original.y) {
+        //     // Skip force application and integration for the top two corners
+        //     continue;
+        // }
 
         particle.force.copy(gravity).multiplyScalar(particle.mass);
         particle.force.add(windForce);
@@ -127,24 +145,22 @@ function simulate() {
     for (let i = 0; i < constraintIterations; i++) {
         for (let v = 0; v < numParticlesHeight; v++) {
             for (let u = 0; u < numParticlesWidth; u++) {
-            const index = u + numParticlesWidth * v;
+                const index = u + numParticlesWidth * v;
 
-            if (u > 0) {
-                satisfyConstraints(particles[index], particles[index - 1], clothWidth / (numParticlesWidth - 1));
-            }
+                if (u > 0) {
+                    satisfyDistanceConstraints(particles[index], particles[index - 1], clothWidth / (numParticlesWidth - 1));
+                }
 
-            if (v > 0) {
-                satisfyConstraints(particles[index], particles[index - numParticlesWidth], clothHeight / (numParticlesHeight - 1));
-            }
+                if (v > 0) {
+                    satisfyDistanceConstraints(particles[index], particles[index - numParticlesWidth], clothHeight / (numParticlesHeight - 1));
+                }
+                if (v == 0 && (u == 0 || u == numParticlesWidth - 1)) {
+                    const particle = particles[index];
+                    particle.position.copy(particle.original);
+                    particle.previous.copy(particle.original);
+                }
             }
         }
-    }
-
-    // Pin the entire top side
-    for (let u = 0; u < numParticlesWidth; u++) {
-        const particle = particles[u];
-        particle.position.copy(particle.original);
-        particle.previous.copy(particle.original);
     }
 
     // Update geometry
@@ -163,6 +179,8 @@ function animate() {
     requestAnimationFrame(animate);
 
     simulate();
+
+    controls.update();
 
     renderer.render(scene, camera);
 }
