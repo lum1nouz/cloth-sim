@@ -32,8 +32,8 @@ function satisfyDistanceConstraints(p1, p2, distance) {
 }
   
 // Set up the scene, camera, and renderer
-const windowHeight = 400;
-const windowWidth = 400;
+const windowHeight = 800;
+const windowWidth = 800;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, windowWidth / windowHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
@@ -67,6 +67,10 @@ const vertices = [];
 const indices = [];
 const textureUVs = [];
 
+let sphere;
+const ballSize = 2; 
+let ballPosition = new THREE.Vector3(0, -45, 0);
+
 for (let v = 0; v < numParticlesHeight; v++) {
     for (let u = 0; u < numParticlesWidth; u++) {
         const x = (u / (numParticlesWidth - 1)) * clothWidth - clothWidth / 2;
@@ -96,7 +100,7 @@ clothGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices
 clothGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(textureUVs, 2));
 clothGeometry.setIndex(indices);
 
-const texture = new THREE.TextureLoader().load(TEXTURES[0]);
+const texture = new THREE.TextureLoader().load( "textures/square_pattern.avif");
 
 // Create the cloth material
 const clothMaterial = new THREE.MeshBasicMaterial({ map: texture, wireframe: false });
@@ -106,6 +110,15 @@ clothMaterial.side = THREE.DoubleSide; // Show both sides of the cloth
 const clothMesh = new THREE.Mesh(clothGeometry, clothMaterial, 
 );
 scene.add(clothMesh);
+
+let ballGeo = new THREE.SphereGeometry(ballSize, 32, 16);
+let ballMaterial = new THREE.MeshBasicMaterial({color:0xff0000});
+
+sphere = new THREE.Mesh(ballGeo, ballMaterial);
+sphere.castShadow = true;
+sphere.receiveShadow = true;
+sphere.visible = true;
+scene.add(sphere);
 
 camera.position.set(20, 5, -15); // Update the camera position for a diagonal point of view
 camera.lookAt(scene.position);
