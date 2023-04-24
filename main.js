@@ -1,5 +1,10 @@
 import * as THREE from "three";
+import { TextureLoader } from "three";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+const TEXTURES = ["textures/fabric.jpeg", "textures/square_pattern.avif", "textures/square_pattern.avif"];
+let windEnabled = true;
+let pointAttached = true;
 
 class Particle {
     constructor(x, y, z, mass = 1) {
@@ -27,12 +32,14 @@ function satisfyDistanceConstraints(p1, p2, distance) {
 }
   
 // Set up the scene, camera, and renderer
+const windowHeight = 400;
+const windowWidth = 400;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(75, windowWidth / windowHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(windowWidth, windowHeight);
 renderer.setClearColor(0xffffff);
-document.body.appendChild(renderer.domElement);
+document.getElementById("renderer").appendChild(renderer.domElement);
 
 const controls = new OrbitControls( camera, renderer.domElement );
 
@@ -89,7 +96,7 @@ clothGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices
 clothGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(textureUVs, 2));
 clothGeometry.setIndex(indices);
 
-const texture = new THREE.TextureLoader().load( "textures/square_pattern.avif");
+const texture = new THREE.TextureLoader().load(TEXTURES[0]);
 
 // Create the cloth material
 const clothMaterial = new THREE.MeshBasicMaterial({ map: texture, wireframe: false });
@@ -125,7 +132,9 @@ function simulate() {
         // }
 
         particle.force.copy(gravity).multiplyScalar(particle.mass);
-        particle.force.add(windForce);
+        if (windEnabled) {
+            particle.force.add(windForce);
+        }
     }
 
 
@@ -154,7 +163,7 @@ function simulate() {
                 if (v > 0) {
                     satisfyDistanceConstraints(particles[index], particles[index - numParticlesWidth], clothHeight / (numParticlesHeight - 1));
                 }
-                if (v == 0 && (u == 0 || u == numParticlesWidth - 1)) {
+                if (v == 0 && (!pointAttached || (u == 0 || u == numParticlesWidth - 1))) {
                     const particle = particles[index];
                     particle.position.copy(particle.original);
                     particle.previous.copy(particle.original);
@@ -186,3 +195,34 @@ function animate() {
 }
 
 animate();
+
+function updateTexture(radioButton) {
+    const newTexture = new THREE.TextureLoader().load(TEXTURES[radioButton]);
+    clothMaterial.map = newTexture;
+
+    clothMesh.material.map.needsUpdate = true;
+    clothMesh.material.needsUpdate = true;
+}
+
+function updateWind(wind) {
+    windEnabled = wind;
+}
+
+function updateAttached(attached) {
+    pointAttached = attached;
+}
+
+const textureButtons = document.querySelectorAll('input[name="texture"]');
+for (let i = 0; i < textureButtons.length; i++) {
+  textureButtons[i].addEventListener('change', () => updateTexture(i));
+}
+
+const windButtons = document.querySelectorAll('input[name="wind"]');
+for (let i = 0; i < windButtons.length; i++) {
+  windButtons[i].addEventListener('change', () => updateWind(i == 0));
+}
+
+const attachedButtons = document.querySelectorAll('input[name="attached"]');
+for (let i = 0; i < attachedButtons.length; i++) {
+  attachedButtons[i].addEventListener('change', () => updateAttached(i == 0));
+}
