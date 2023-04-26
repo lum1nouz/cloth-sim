@@ -5,7 +5,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 const TEXTURES = ["textures/fabric.jpeg", "textures/square_pattern.avif", "textures/square_pattern.avif"];
 let windEnabled = true;
 let pointAttached = true;
-  
+let clothTear = false;
+let windLevel = 50;  
+
 //Define scene and camera, also add orbital controls
 const windowHeight = 800;
 const windowWidth = 800;
@@ -147,7 +149,8 @@ camera.lookAt(scene.position);
 controls.update();
 
 //Initialize wind force, only in -z direction
-const windForce = new THREE.Vector3(0, 0, -10);
+const windForce = new THREE.Vector3(0, 0, -5);
+
 
 //Create time intervals - change timestep to change speed of simulation
 //Constraint Iterations specifies integrity of cloth
@@ -183,11 +186,12 @@ function posConstraint(index){
 }
 
 function simulate() {
+    
     // Attain wind strength from cos curve applied to current time stamp.
     const windStrength = Math.cos(performance.now() / 1000) * 2.5 + 1; // Adjust the frequency and amplitude of the wind
 
     //Update the z component of windforce since our wind only moves in the -z direction
-    windForce.set(0, 0, -5 * windStrength);
+    windForce.set(0, 0, (windLevel / -10) * windStrength);
 
     //For each particle, update the force of the particle.
     for (let i = 0; i < particles.length; i++) {
@@ -225,7 +229,13 @@ function simulate() {
 
                 //Apply distance constraint to horizontally adjacent particles (current particle and particle to the left)
                 if (horPart > 0) {
-                    distConstraints(particles[index], particles[index - 1], clothWidth / (horizontalParticles - 1));
+                    if(clothTear){
+                        if(horPart != horizontalParticles / 2){
+                            distConstraints(particles[index], particles[index - 1], clothWidth / (horizontalParticles - 1));
+                        }
+                    }else {
+                        distConstraints(particles[index], particles[index - 1], clothWidth / (horizontalParticles - 1));
+                    }
                 }
                 
                 //Apply distance constraint to vertically adjacent particles (current particle and particle above)
@@ -284,6 +294,14 @@ function updateAttached(attached) {
     pointAttached = attached;
 }
 
+function updateTear(){
+    clothTear = !clothTear;
+}
+
+function updateWindLevel(level){
+    windLevel = level;
+}
+
 
 
 //Event listeners to update GUI buttons
@@ -302,3 +320,7 @@ const attachedButtons = document.querySelectorAll('input[name="attached"]');
 for (let i = 0; i < attachedButtons.length; i++) {
   attachedButtons[i].addEventListener('change', () => updateAttached(i == 0));
 }
+
+const slider = document.getElementById("myRange");
+slider.addEventListener('change', () => updateWindLevel(slider.value));
+
