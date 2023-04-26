@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 const TEXTURES = ["textures/fabric.jpeg", "textures/square_pattern.avif", "textures/carpet.jpeg"];
 let windEnabled = true;
 let pointAttached = true;
-let clothTear = false;
+let clothTear = true;
 let windLevel = 50;  
 
 //Define scene and camera, also add orbital controls
@@ -60,7 +60,6 @@ class Particle {
 }
 
 
-
 // Initialize cloth geometry, as well as particles, vertices, and texture UV coordinates
 const clothWidth = 10;
 const clothHeight = 10;
@@ -69,9 +68,11 @@ const verticalParticles = 20;
 const clothGeometry = new THREE.BufferGeometry();
 
 const particles = [];
+const rightParticles = [];
 const vertices = [];
 const indices = [];
 const textureUVs = [];
+
 
 //Loop through each particle horizontally and vertically
 for (let vertPart = 0; vertPart < verticalParticles; vertPart++) {
@@ -82,6 +83,8 @@ for (let vertPart = 0; vertPart < verticalParticles; vertPart++) {
         const x = (horPart / (horizontalParticles - 1)) * clothWidth - clothWidth / 2;
         const y = (vertPart / (verticalParticles - 1)) * clothHeight - clothHeight / 2;
         const z = 0;
+
+        console.log(vertPart, horPart, x, y, z);
 
         //Add indices to define the particles as going row by row, from left to right
         const index = horPart + horizontalParticles * (verticalParticles - 1 - vertPart); 
@@ -101,6 +104,10 @@ for (let vertPart = 0; vertPart < verticalParticles; vertPart++) {
             indices.push(bottomleft, bottomright, topright);
         }
 
+        if (horPart == horizontalParticles/2) {
+            rightParticles.push(new Particle(x, y, z));
+        }
+
         //Update UV coordinates
         textureUVs.push(vertPart/verticalParticles, horPart/horizontalParticles);
     }
@@ -118,7 +125,93 @@ const clothMaterial = new THREE.MeshBasicMaterial({ map: texture, wireframe: fal
 clothMaterial.side = THREE.DoubleSide; // Show both sides of the cloth
 
 const clothMesh = new THREE.Mesh(clothGeometry, clothMaterial);
+clothMesh.visible = false;
 scene.add(clothMesh);
+
+
+const vertices1 = [];
+const vertices2 = [];
+const indices1 = [];
+const indices2 = [];
+const textureUVs1 = [];
+const textureUVs2 = [];
+
+const clothGeometry1 = new THREE.BufferGeometry();
+const clothGeometry2 = new THREE.BufferGeometry();
+
+// split at vertPart == verticleParticles/2
+
+//Loop through each particle horizontally and vertically
+for (let vertPart = 0; vertPart < verticalParticles; vertPart++) {
+    for (let horPart = 0; horPart < horizontalParticles; horPart++) {
+
+        //Initialize 3-d coordinates of particles based on cloth width and height
+        //Center of cloth is at the origin, all particles z coordinate is 0
+        const x = (horPart / (horizontalParticles - 1)) * clothWidth - clothWidth / 2;
+        const y = (vertPart / (verticalParticles - 1)) * clothHeight - clothHeight / 2;
+        const z = 0;
+
+        if (horPart <= horizontalParticles/2) {
+            vertices1.push(x, y, z);
+        }
+        if (horPart >= horizontalParticles/2) {
+            vertices2.push(x, y, z);
+        }
+
+        if (horPart < horizontalParticles - 1 && vertPart < verticalParticles - 1) {
+            //Create a square defined by 4 adjacent particles
+
+            if (horPart + 1 <= horizontalParticles/2) {
+                //Create a square defined by 4 adjacent particles
+                const topleft = horPart + (horizontalParticles/2 + 1) * vertPart;
+                const bottomleft = horPart + (horizontalParticles/2 + 1) * (vertPart + 1);
+                const bottomright = (horPart + 1) + (horizontalParticles/2 + 1) * (vertPart + 1);
+                const topright = (horPart + 1) + (horizontalParticles/2 + 1) * vertPart;
+
+                //Draw square by dividing it into two triangles
+                indices1.push(topleft, bottomleft, topright);
+                indices1.push(bottomleft, bottomright, topright);
+            }
+            if (horPart >= horizontalParticles/2) {
+                //Create a square defined by 4 adjacent particles
+                const newHorPart = horPart - horizontalParticles/2;
+
+                const topleft = newHorPart + (horizontalParticles/2) * vertPart;
+                const bottomleft = newHorPart + (horizontalParticles/2) * (vertPart + 1);
+                const bottomright = (newHorPart + 1) + (horizontalParticles/2) * (vertPart + 1);
+                const topright = (newHorPart + 1) + (horizontalParticles/2) * vertPart;
+
+                //Draw square by dividing it into two triangles
+                indices2.push(topleft, bottomleft, topright);
+                indices2.push(bottomleft, bottomright, topright);
+            }
+        }
+
+        //Update UV coordinates
+        if (horPart <= horizontalParticles/2) {
+            textureUVs1.push(vertPart/verticalParticles, horPart/horizontalParticles);
+        }
+        if (horPart >= horizontalParticles/2) {
+            textureUVs2.push(vertPart/verticalParticles, horPart/horizontalParticles);
+        }
+    }
+}
+
+clothGeometry1.setAttribute('position', new THREE.Float32BufferAttribute(vertices1, 3));
+clothGeometry1.setAttribute('uv', new THREE.Float32BufferAttribute(textureUVs1, 2));
+clothGeometry1.setIndex(indices1);
+
+clothGeometry2.setAttribute('position', new THREE.Float32BufferAttribute(vertices2, 3));
+clothGeometry2.setAttribute('uv', new THREE.Float32BufferAttribute(textureUVs2, 2));
+clothGeometry2.setIndex(indices2);
+
+const clothMesh1 = new THREE.Mesh(clothGeometry1, clothMaterial);
+clothMesh1.visible = true;
+const clothMesh2 = new THREE.Mesh(clothGeometry2, clothMaterial);
+clothMesh2.visible = true;
+
+scene.add(clothMesh1);
+scene.add(clothMesh2);
 
 
 //Create cylinder geometry to represent the pole that the cloth is attached to
@@ -216,7 +309,6 @@ function simulate() {
         curParticle.previous.copy(curParticle.position);
         curParticle.position.copy(newPos);
     }
-
     
 
     // Apply distance and position constraints. 
@@ -224,6 +316,9 @@ function simulate() {
     for (let i = 0; i < constraintIterations; i++) {
         //Iterate through each vertical and horizontal particle
         for (let vertPart = 0; vertPart < verticalParticles; vertPart++) {
+            if (clothTear && vertPart > 0) {
+                distConstraints(rightParticles[vertPart - 1], rightParticles[vertPart], clothHeight / (verticalParticles - 1));
+            }
             for (let horPart = 0; horPart < horizontalParticles; horPart++) {
                 const index = horPart + horizontalParticles * vertPart;
 
@@ -231,7 +326,11 @@ function simulate() {
                 if (horPart > 0) {
                     if(clothTear){
                         if(horPart != horizontalParticles / 2){
-                            distConstraints(particles[index], particles[index - 1], clothWidth / (horizontalParticles - 1));
+                            if (horPart == horizontalParticles / 2 + 1) {
+                                distConstraints(particles[index], rightParticles[vertPart], clothWidth / (horizontalParticles - 1));
+                            } else {
+                                distConstraints(particles[index], particles[index - 1], clothWidth / (horizontalParticles - 1));
+                            }
                         }
                     }else {
                         distConstraints(particles[index], particles[index - 1], clothWidth / (horizontalParticles - 1));
@@ -262,7 +361,51 @@ function simulate() {
         positions[i * 3 + 2] = particles[i].position.z;
     }
 
+    const positions1 = clothGeometry1.attributes.position.array;
+    const positions2 = clothGeometry2.attributes.position.array;
+    for (let r = 0; r < verticalParticles; r++) {
+        for (let c = 0; c < horizontalParticles; c++) {
+            const index = c + horizontalParticles * r;
+
+            if (c <= horizontalParticles/2) {
+                const positionIndex = c + (horizontalParticles/2 + 1) * r;
+
+                if (c == horizontalParticles / 2) {
+                    positions1[positionIndex * 3] = rightParticles[r].position.x;
+                    positions1[positionIndex * 3 + 1] = rightParticles[r].position.y;
+                    positions1[positionIndex * 3 + 2] = rightParticles[r].position.z;
+                } else {
+                    positions1[positionIndex * 3] = particles[index].position.x;
+                    positions1[positionIndex * 3 + 1] = particles[index].position.y;
+                    positions1[positionIndex * 3 + 2] = particles[index].position.z;
+                }
+                // positions1[positionIndex * 3] = particles[index].position.x;
+                // positions1[positionIndex * 3 + 1] = particles[index].position.y;
+                // positions1[positionIndex * 3 + 2] = particles[index].position.z;
+            }
+            if (c >= horizontalParticles/2) {
+                const positionIndex = (c - horizontalParticles/2) + (horizontalParticles/2) * r;
+                console.log(positionIndex);
+
+                // if (c == horizontalParticles / 2) {
+                //     positions2[positionIndex * 3] = rightParticles[r].position.x;
+                //     positions2[positionIndex * 3 + 1] = rightParticles[r].position.y;
+                //     positions2[positionIndex * 3 + 2] = rightParticles[r].position.z;
+                // } else {
+                //     positions2[positionIndex * 3] = particles[index].position.x;
+                //     positions2[positionIndex * 3 + 1] = particles[index].position.y;
+                //     positions2[positionIndex * 3 + 2] = particles[index].position.z;
+                // }
+                positions2[positionIndex * 3] = particles[index].position.x;
+                positions2[positionIndex * 3 + 1] = particles[index].position.y;
+                positions2[positionIndex * 3 + 2] = particles[index].position.z;
+            }
+        }
+    }
+
     clothGeometry.attributes.position.needsUpdate = true;
+    clothGeometry1.attributes.position.needsUpdate = true;
+    clothGeometry2.attributes.position.needsUpdate = true;
 }
 
 // Animate the scene
