@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-const TEXTURES = ["textures/fabric.jpeg", "textures/square_pattern.avif", "textures/square_pattern.avif"];
+const TEXTURES = ["textures/fabric.jpeg", "textures/square_pattern.avif", "textures/carpet.jpeg"];
 let windEnabled = true;
 let pointAttached = true;
 let clothTear = false;
